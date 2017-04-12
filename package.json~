@@ -1,0 +1,18 @@
+{
+    "name": "new-garden",
+    "version": "0.1.0",
+    "description": "",
+    "author": "",
+    "main": "src/index.js",
+    "ruff": {
+        "boards": {
+            "sg-mbd-v1": "file:/users/junyang/documents/mywork/smart_garden/sg-uart/ruff_modules/sg-mbd-v1/",
+            "*": "*"
+        },
+        "dependencies": {
+            "zigbee-uart": "*",
+            "mqtt": "^0.1.2"
+        },
+        "devDependencies": {}
+    }
+}

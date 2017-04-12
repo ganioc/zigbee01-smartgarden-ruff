@@ -1,0 +1,80 @@
+{
+    "version": "2.0",
+    "id": "sg-mbd-v1",
+    "model": "sg-mbd-v1",
+    "outputs": {
+        "gnd-0": "ground/gnd-0",
+        "gnd-1": "ground/gnd-1",
+        "vdd-0": "power/vdd-0",
+        "vdd-1": "power/vdd-1",
+        "gpio-0": "gpio-0/gpio",
+	"uart0" : "uart0/uart"
+    },
+    "devices": [
+        {
+            "id": "ground",
+            "outputs": {
+                "gnd-0": {
+                    "type": "ground"
+                },
+                "gnd-1": {
+                    "type": "ground"
+                }
+            }
+        },
+        {
+            "id": "power",
+            "outputs": {
+                "vdd-0": {
+                    "type": "power",
+                    "args": {
+                        "voltage": "3.3v"
+                    }
+                },
+                "vdd-1": {
+                    "type": "power",
+                    "args": {
+                        "voltage": "5v"
+                    }
+                }
+            }
+        },
+        {
+            "id": "gpio-0",
+            "model": "gpio",
+            "driver": "sys-gpio",
+            "inputs": {
+                "pin": {
+                    "type": "number",
+                    "args": {
+                        "pin": 0
+                    }
+                }
+            },
+            "outputs": {
+                "gpio": {
+                    "type": "gpio"
+                }
+            }
+        },
+	{
+	  "id": "uart0",
+            "model": "zigbee-uart",
+            "driver": "sys-uart",
+            "inputs": {
+                "device": {
+                    "type": "string",
+                    "args": {
+                        "path": "/dev/ttySP2"
+                    }
+                }
+            },
+            "outputs": {
+                "uart" : {
+                    "type":"uart"
+                }
+            }
+
+	}
+    ]
+}

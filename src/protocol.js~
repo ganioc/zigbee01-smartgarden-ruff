@@ -1,0 +1,611 @@
+/**
+ * @fileOverview
+ * @name protocol.js
+ * @author Yang Jun <yangjun@nanchao.org>
+ * @license MIT license
+
+# Receive messages:
+1. device announce
+2. device heartbeat
+
+3. device temp      readRsp
+4. device humidity  readRsp
+5. device ph        readRsp
+6. device illumi    readRsp
+
+7. device irrigateOnOff    writeRsp
+8. device identify         writeRsp
+
+
+# Send messages:
+2. device heartbeat        Rsp
+3. device temp             read
+4. device humidity         read
+5. device ph               read
+6. device illumi           read
+
+7. device irrigateOnOff    write
+8. device identify         write
+
+# 
+
+ */
+
+'use strict';
+
+// ZCL definition
+var ZCL_CLUSTER_ID_GEN_BASIC   = 0;
+var ZCL_DATATYPE_UINT16        = 0x21;
+var ZCL_CLUSTER_ID_GEN_ON_OFF  = 0x0006;
+
+
+var ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD = 0x4001;
+var ATTRID_BASIC_SMARTGARDEN_ALARM_STATUS=                      0x4002;
+var ATTRID_BASIC_SMARTGARDEN_PH_VALUE     =                 0x4003;
+var ATTRID_BASIC_SMARTGARDEN_TEMP          =                    0x4004;
+var ATTRID_BASIC_SMARTGARDEN_HUMIDITY       =               0x4005;
+var ATTRID_BASIC_SMARTGARDEN_LIGHT_INTENSITY =        0x4006;
+var ATTRID_BASIC_SMARTGARDEN_IRRIGATE_ONOFF   =       0x4007;
+var ATTRID_BASIC_SMARTGARDEN_STATE             =               0x4008;
+var ATTRID_BASIC_SMARTGARDEN_CHIPID             =              0x4009;
+var ATTRID_BASIC_SMARTGARDEN_CHIPID_ACK          =         0x4010;
+var ATTRID_BASIC_SMARTGARDEN_ATTR_LIST            =          0x4011;
+var ATTRID_BASIC_SMARTGARDEN_DEVICE_TYPE           =       0x4012;
+var ATTRID_BASIC_SMARTGARDEN_TEMP_INTENSITY         =       0x4013;
+var ATTRID_BASIC_SMARTGARDEN_HUMI_INTENSITY          =       0x4014; 
+var ATTRID_BASIC_SMARTGARDEN_TYPE1_STATUS            =       0x4015;
+var ATTRID_BASIC_SMARTGARDEN_TYPE2_STATUS           =    0x4016;
+
+
+// cmdId
+var COMMAND_OFF         = 0x00;
+var COMMAND_ON          = 0x01;
+var COMMAND_TOGGLE      = 0x02;
+
+var COMMAND_IDENTIFYING = 0x10;
+var COMMAND_TURN_ON_IRRIGATE = 0x11;
+var COMMAND_TURN_OFF_IRRIGATE = 0x12;
+var COMMAND_TURN_ON_PERMIT_JOINING =0x13;
+
+
+// End of ZCL definition
+
+// mapping, param_id to src_ep, cluster_id, attr_id
+var PARAM_ID_HEARTBEAT_PERIOD  = 0;
+var PARAM_ID_AIR_TEMP              = 1;
+var PARAM_ID_AIR_HUMIDITY          = 2;
+var PARAM_ID_AIR_LIGHT_INTENSITY   = 3;
+var PARAM_ID_SOIL_PH_VALUE          = 4;
+var PARAM_ID_SOIL_TEMP         = 5;
+var PARAM_ID_SOIL_HUMIDITY    = 6;
+var PARAM_ID_ALARM_STATUS     = 7;
+var PARAM_ID_IRRIGATE_ONOFF   = 8;
+var PARAM_ID_STATE            = 9;
+var PARAM_ID_TYPE1_STATUS     = 129;
+var PARAM_ID_TYPE2_STATUS     = 130;
+
+
+var mapDeviceTypeCapability = {
+    1:[0,4,5,6,7,8 ], //soil
+    2:[0,1,2,3, 7,8] // air
+};
+
+var mapParam2HA = {
+    //PARAM_ID_HEARTBEAT_PERIOD
+    0:{
+	content: 'PARAM_ID_HEARTBEAT_PERIOD',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD
+    },
+    //PARAM_ID_TEMP
+    1:{
+	content:  'PARAM_ID_AIR_TEMP',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_TEMP_INTENSITY
+    },
+    //PARAM_ID_HUMIDITY
+    2:{
+	content:  'PARAM_ID_AIR_HUMIDITY',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_HUMI_INTENSITY
+    },
+    //PARAM_ID_LIGHT_INTENSITY
+    3:{
+	content:  'PARAM_ID_AIR_LIGHT_INTENSITY',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_LIGHT_INTENSITY
+    },
+    //PARAM_ID_PH_VALUE
+    4:{
+	content:  'PARAM_ID_SOIL_PH_VALUE',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_PH_VALUE
+    },
+    //PARAM_ID_SOIL_TEMP
+    5:{
+	content:  'PARAM_ID_SOIL_TEMP',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_TEMP
+    },
+    6:{
+	content:  'PARAM_ID_SOIL_HUMIDITY',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_HUMIDITY
+    },
+    7:{
+	content:  'PARAM_ID_ALARM_STATUS',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_ALARM_STATUS
+    },
+    8:{
+	content:  'PARAM_ID_IRRIGATE_ONOFF',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_IRRIGATE_ONOFF
+    },
+    9:{
+	content:  'PARAM_ID_STATE',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_STATE
+    }      ,
+    129:{
+	content:  'PARAM_ID_TYPE1_STATUS',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_TYPE1_STATUS
+    },
+    130:{
+	content:  'PARAM_ID_TYPE2_STATUS',
+	clusterId: ZCL_CLUSTER_ID_GEN_BASIC,
+	attrId:    ATTRID_BASIC_SMARTGARDEN_TYPE2_STATUS
+    }
+    
+};
+
+// mapping , cmd_id to src_ep, cluster_id, cmd_id
+var CMD_ID_TURN_ON_IRRIGATE       = 10;
+var CMD_ID_TURN_OFF_IRRIGATE      = 11;
+var CMD_ID_TURN_ON_PERMIT_JOINING = 12;
+var CMD_ID_IDENTIFYING            = 13;
+var CMD_ID_LED_OFF                = 14;
+var CMD_ID_LED_ON                 = 15;
+var CMD_ID_LED_TOGGLE             = 16;
+var CMD_ID_TEST_LINK              = 17;
+
+var mapCmd2HA = {
+    //CMD_ID_TURN_ON_IRRIGATE
+    10:{
+	content:   'CMD_ID_TURN_ON_IRRIGATE',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_TURN_ON_IRRIGATE
+    },
+    //CMD_ID_TURN_OFF_IRRIGATE
+    11:{
+	content:   'CMD_ID_TURN_OFF_IRRIGATE',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_TURN_OFF_IRRIGATE
+    },
+    //CMD_ID_TURN_ON_PERMIT_JOINING
+    12:{
+	content:    'CMD_ID_TURN_ON_PERMIT_JOINING',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_TURN_ON_PERMIT_JOINING
+    },
+    13:{
+	content:    'CMD_ID_IDENTIFYING',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_IDENTIFYING
+    },
+    14:{
+	content:    'CMD_ID_LED_OFF',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_OFF
+    },
+    15:{
+	content:    'CMD_ID_LED_ON',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_ON
+    },
+    16:{
+	content:    'CMD_ID_LED_TOGGLE',
+	clusterId:  ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:      COMMAND_TOGGLE
+    }    
+};
+
+// local chipId, shorAddr mapping
+
+// MT port operation parameters
+var   MT_CUST_TEST = 0x0;  //Also cmdid of test response packet
+var   MT_CUST_HEARTBEAT   = 0x01; // Also cmdid of heartbeat response packet
+var   MT_CUST_READ_ATTR   = 0x02;
+var   MT_CUST_WRITE_ATTR  = 0x03;
+var   MT_CUST_READ_ATTR_RSP = 0x04;
+var   MT_CUST_WRITE_ATTR_RSP= 0x05;
+var   MT_CUST_COMMAND       = 0x06;// Also comdid of cmd response packet
+var   MT_CUST_COMMAND_RSP   = 0x07;
+
+var   MT_CUST_COMMAND_SUBSYSTEM = 14;
+
+var   MT_CUST_COMMAND_TYPE_ASK  = 0x80;
+var   MT_CUST_COMMAND_TYPE_ANS  = 0xa0;
+var   MT_CUST_COMMAND_TYPE_RPT  = 0xc0;
+
+var   SRCEP = 8;
+
+function MT_UartCalcFCS( buf, len ){
+    var xorResult;
+    //console.log('calcFCS, in Data');
+    xorResult = 0;
+
+    // console.log('input to buf:');
+    // //console.log(buf);
+    // console.log('input len:' + len);
+    // console.log('buf.length:' + buf.length);
+    
+    for( var x = 0 ; x< len; x++){
+	//console.log(buf[x]);
+	xorResult = (xorResult ^ buf[x]) & 0xff;
+    }
+    //console.log('out of calcFCS');
+    //console.log('xorResult is:' + xorResult);
+    return xorResult;
+}
+
+
+// parse received buffer and return an object
+var funcParse = function(buf){
+    var out = {};
+    out.length = buf[0];
+    out.cmdType = buf[1] & 0xe0;
+    out.subSystem = buf[1] & 0x1f;
+    out.cmdId = buf[2];
+    out.data = new Buffer(out.length);
+
+    for(var i=0; i< out.length; i++){
+	out.data[i] = buf[3 + i];
+    }
+
+    if(out.subSystem === MT_CUST_COMMAND_SUBSYSTEM){
+	console.log('Protocol funcParse');
+	console.log(out);
+    }else{
+	;
+    }
+    
+    return out;
+};
+function processMsgRpt(obj){
+
+    switch(obj.cmdID){
+    case MT_CUST_HEARTBEAT:
+	console.log("Heartbeat report:");
+	console.log(new Date());
+	console.log(obj.data);
+	break;
+    default:
+	break;
+
+    }
+}
+function processMsgAns(obj){
+    console.log('MsgAns received');
+}
+
+function processMsg( obj ){
+    console.log('cust msg received');
+    //console.log(obj);
+    
+    if(obj.cmdType === MT_CUST_COMMAND_TYPE_RPT){
+	processMsgRpt(obj);
+    }
+    else if(obj.cmdType === MT_CUST_COMMAND_TYPE_ANS){
+	processMsgAns( obj );
+    }
+}
+
+// Send out command
+function funcSend(){
+    
+
+};
+
+
+
+function buildCustCmd( cmdType, subSystem, cmdID, data){
+    var len = 1 + 3 + data.length + 1;
+    var buf = new Uint8Array(len);
+    var i;
+    
+    console.log('cmdtype is ' + cmdType);
+    console.log('subsystem is ' + subSystem);
+    buf[0] = 0xfe;
+    buf[1] = data.length;
+    buf[2] = (cmdType & 0xe0) + (subSystem & 0x1f);
+
+    console.log('cmd0 is:' + buf[2].toString('16'));
+
+    buf[3] = cmdID;
+
+    for(var i=0; i< data.length; i++){
+	buf[4+i] = data[i];
+    }
+
+    //var tempData = new Buffer.from(buf.buffer, 1, data.length + 3);
+    var tempData = new Buffer(data.length + 3);
+
+    for(i=0; i< tempData.length; i++){
+	tempData[i] = buf[1 + i];
+    }
+
+    console.log('input to CalcFCS:');
+    console.log(tempData);
+    
+    buf[len - 1] = MT_UartCalcFCS( tempData,
+				 data.length + 3);
+
+    return buf;
+}
+// Send ReadAttrCmd
+function buildSendCustReadAttrCmd(addr, dstEp, clusterId, attrId){
+    var buf = new Uint8Array(8);
+
+    console.log('buildSendCustreadAttrCmd');
+    
+    buf[0] = SRCEP;
+    // dstAddr
+    buf[1] = (addr & 0xff00) >> 8;
+    buf[2] = (addr & 0x00ff);
+    buf[3] = dstEp;
+    buf[4] = (clusterId & 0xff00) >> 8;
+    buf[5] = (clusterId & 0x00ff);
+    buf[6] = (attrId & 0xff00) >> 8;
+    buf[7] = (attrId & 0x00ff);
+
+    return buildCustCmd( MT_CUST_COMMAND_TYPE_ASK,
+		  MT_CUST_COMMAND_SUBSYSTEM,
+		  MT_CUST_READ_ATTR,
+		  buf
+		);
+}
+// send write command
+function buildSendCustWriteAttrCmd(addr, dstEp, clusterId, attrId,value){
+    var buf = new Uint8Array(11);
+
+    buf[0] = SRCEP;
+    // dstAddr
+    buf[1] = (addr & 0xff00) >> 8;
+    buf[2] = (addr & 0x00ff);
+    buf[3] = dstEp;
+    buf[4] = (clusterId & 0xff00) >> 8;
+    buf[5] = (clusterId & 0x00ff);
+    buf[6] = (attrId & 0xff00) >> 8;
+    buf[7] = (attrId & 0x00ff);
+    buf[8] = ZCL_DATATYPE_UINT16;
+    buf[9] = (value & 0xff00) >> 8;
+    buf[10] = (value & 0x00ff);
+
+    return buildCustCmd( MT_CUST_COMMAND_TYPE_ASK,
+		  MT_CUST_COMMAND_SUBSYSTEM,
+		  MT_CUST_WRITE_ATTR,
+		  buf
+		);
+}
+// send a test command
+function buildSendTestCmd(value){
+    var buf = new Uint8Array(1);
+    buf[0] = value; // It's a byte value
+    
+    return buildCustCmd( MT_CUST_COMMAND_TYPE_ASK,
+		  MT_CUST_COMMAND_SUBSYSTEM,
+		  MT_CUST_TEST,
+		  buf
+		);
+}
+
+// send write command
+function buildSendCustCmdCmd(addr, dstEp, clusterId, cmdId){
+    var buf = new Uint8Array(8);
+
+    buf[0] = SRCEP;
+    // dstAddr
+    buf[1] = (addr & 0xff00) >> 8;
+    buf[2] = (addr & 0x00ff);
+    buf[3] = dstEp;
+    buf[4] = (clusterId & 0xff00) >> 8;
+    buf[5] = (clusterId & 0x00ff);
+    buf[6] = (cmdId & 0xff00) >> 8;
+    buf[7] = (cmdId & 0x00ff);
+
+    return buildCustCmd( MT_CUST_COMMAND_TYPE_ASK,
+		  MT_CUST_COMMAND_SUBSYSTEM,
+		  MT_CUST_COMMAND,
+		  buf
+		);
+}
+
+function isCustCommand( data){
+    if(data.subSystem == MT_CUST_COMMAND_SUBSYSTEM){
+	return true;
+    }
+}
+function isAns( data){
+    return (data.cmdType === MT_CUST_COMMAND_TYPE_ANS );
+}
+
+function isHeartbeatRpt( msg ){
+    return (msg.cmdType === MT_CUST_COMMAND_TYPE_RPT);
+}
+
+function parsePayloadHeartbeatRpt( msg){
+    var buf = new Buffer(msg.data);
+    var out = {};
+
+    out.shorAddr =  buf.readUInt16BE(0);
+    out.deviceType = buf.readUInt16BE(2);
+    out.chipId    =     buf.readUInt32BE(4);
+    out.manufacId =  buf.readUInt32BE(8);
+
+    return out;
+    
+}
+// input buffer, output object
+function parseRData( buf ){
+    var out = {};
+    out.addr = buf.readUInt16BE(0);
+    out.clusterId = buf.readUInt16BE(2);
+    out.attrId    = buf.readUInt16BE(4);
+
+    if( out.attrId === ATTRID_BASIC_SMARTGARDEN_TYPE1_STATUS ||
+	out.attrId === ATTRID_BASIC_SMARTGARDEN_TYPE2_STATUS){
+	out.value = convertRDataFormat(out.attrId, buf);
+    }else if( buf.length == 8){
+	out.value = convertRDataFormat( out.attrId, buf.readUInt16BE(6));
+    }
+    else if( buf.length == 10){
+	out.value  = convertRDataFormat(out.attrId,buf.readUInt32BE(6));
+    }
+    else{
+	throw new Error('Wrong buf data length');
+    }
+
+    return out;
+}
+
+function convertRDataFormat(attrId, value){
+    var out;
+    console.log('convert attid:' + attrId + ' value:' + value);
+    
+    switch(attrId){
+    case ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD:
+	out = value;
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_TEMP_INTENSITY:
+	if( (value & 0x8000) == 0){
+	    // 正值
+	    out = value * 0.1;
+	}else{
+	    // 负值
+	    out = value & 0x7fff;
+	    out = 0x7fff - out + 1;
+	    out = -out * 0.1;
+	}
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_HUMI_INTENSITY:
+	out = value * 0.1;
+	
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_LIGHT_INTENSITY:
+	out = value;
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_PH_VALUE:
+	out = (value - 4.0 )*14/1600;
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_TEMP:
+	if( (value & 0x8000) == 0){
+	    // 正值
+	    out = value * 0.01;
+	}else{
+	    // 负值
+	    out = value & 0x7fff;
+	    out = 0x7fff - out + 1;
+	    out = -out * 0.01;
+	}
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_HUMIDITY:
+	out = value *0.01;
+
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_TYPE1_STATUS:
+	// value is a buffer
+	out ={};
+	out.heartBeatPeriod = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD,
+	    value.readUInt16BE(6));
+	out.ph = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_PH_VALUE,
+	    value.readUInt16BE(8));
+	out.soilTemp = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_TEMP,
+	    value.readUInt16BE(10));
+	out.soilHumi = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_HUMIDITY,
+	    value.readUInt16BE(12));
+	out.alarm = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_ALARM_STATUS,
+	    value.readUInt16BE(14));
+	out.onOff = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_IRRIGATE_ONOFF,
+	    value.readUInt16BE(16));
+	out.deviceType = value.readUInt16BE(18);
+	break;
+    case ATTRID_BASIC_SMARTGARDEN_TYPE2_STATUS:
+	// value is a buffer
+	var temp;
+	out = {};
+	out.heartBeatPeriod = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD, value.readUInt16BE(6));
+	out.airTemp = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_TEMP_INTENSITY,
+	    value.readUInt16BE(8));
+	out.airHumi = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_HUMI_INTENSITY,
+	    value.readUInt16BE(10));
+	temp = value.readUInt32BE(12);
+	out.airLight = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_LIGHT_INTENSITY,
+	    temp);
+	out.alarm = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_ALARM_STATUS,
+	    value.readUInt16BE(16));
+	out.onOff = convertRDataFormat(
+	    ATTRID_BASIC_SMARTGARDEN_IRRIGATE_ONOFF,
+	    value.readUInt16BE(18));
+	out.deviceType = value.readUInt16BE(20);	
+	break;
+    default:
+	out = value;
+	break;
+    }
+    return out;
+}
+
+module.exports={
+    parse:        funcParse,
+    send:         funcSend,
+//    buildCustCmd: buildCustCmd,
+    buildSendCustReadAttrCmd: buildSendCustReadAttrCmd,
+    buildSendCustWriteAttrCmd: buildSendCustWriteAttrCmd,
+    buildSendCustCmdCmd:       buildSendCustCmdCmd,
+    buildSendTestCmd:          buildSendTestCmd,
+    MT_UartCalcFCS: MT_UartCalcFCS,
+    processMsg:     processMsg,
+    isCustCommand:  isCustCommand,
+    isAns:          isAns,
+    isHeartbeatRpt: isHeartbeatRpt,
+    parsePayloadHeartbeatRpt: parsePayloadHeartbeatRpt,
+    mapParam2HA:    mapParam2HA,
+    mapCmd2HA:      mapCmd2HA,
+    PARAM_ID_HEARTBEAT_PERIOD : PARAM_ID_HEARTBEAT_PERIOD,
+    PARAM_ID_AIR_TEMP           :PARAM_ID_AIR_TEMP,
+    PARAM_ID_AIR_HUMIDITY       :PARAM_ID_AIR_HUMIDITY,
+    PARAM_ID_AIR_LIGHT_INTENSITY:PARAM_ID_AIR_LIGHT_INTENSITY,
+    PARAM_ID_SOIL_PH_VALUE    :PARAM_ID_SOIL_PH_VALUE,
+    PARAM_ID_SOIL_TEMP        :PARAM_ID_SOIL_TEMP,
+    PARAM_ID_SOIL_HUMIDITY    :PARAM_ID_SOIL_HUMIDITY,
+    PARAM_ID_TYPE1_STATUS     :PARAM_ID_TYPE1_STATUS,
+    PARAM_ID_TYPE2_STATUS     :PARAM_ID_TYPE2_STATUS,
+    MT_CUST_TEST:  MT_CUST_TEST,
+    MT_CUST_READ_ATTR: MT_CUST_READ_ATTR,
+    MT_CUST_READ_ATTR_RSP: MT_CUST_READ_ATTR_RSP,
+    MT_CUST_WRITE_ATTR_RSP: MT_CUST_WRITE_ATTR_RSP,
+    MT_CUST_COMMAND:  MT_CUST_COMMAND,
+    MT_CUST_COMMAND_RSP:   MT_CUST_COMMAND_RSP,
+    parseRData: parseRData,
+    mapDeviceTypeCapability: mapDeviceTypeCapability
+};
+
+
+
+
+
+
+
