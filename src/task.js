@@ -15,9 +15,8 @@ var funcSeqId = (function(){
 function Task(options,callback){
     this._id = funcSeqId();
     this._timeout = options.timeout || 6000;// 4s timeout
-    
+    this._life = 4;
     // if(options.type === undefined){
-
     // 	throw new Error('Task need options.type');
     // }
     

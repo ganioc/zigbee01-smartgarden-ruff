@@ -101,31 +101,20 @@ $.ready(function (error) {
 	    }
 	});
 	
-	
-	mqttClient.on('error',function(){
-	    console.log('mqtt error, consier to restart');
-	    
-	});
-	
-	mqttClient.on('close', function(){
-	    console.log('mqtt close, to restart');
-	    
-	});
-	
-	
  	intervalStatus = setInterval(function(){
-	    console.log('---------Publish status---------');
+	    console.log('Publish status');
 	    mqttClient.publish(TOPIC_GATEWAY_STATUS,
 			       JSON.stringify(getDeviceStatus()));
-	},180000);
-
+	},60000);
 
 	setInterval(function(){
-	    console.log('@@@@@@@@@@@@@@@@@@@');	
-	    console.log("Publish heartbeat");
+	    console.log('@');	
+	    console.log("Publish heartbeat:" + heartbeat_counter);
 
 	    
 	    heartbeat_counter--;
+
+
 	    if(heartbeat_counter < 0){
 		reboot();
 	    }
@@ -140,7 +129,7 @@ $.ready(function (error) {
 			)
 			  );
 	    
-	}, 60000);
+	}, 58000);
 	
 	duplexer.open();
 
@@ -154,6 +143,19 @@ $.ready(function (error) {
 	});
 
     });
+
+    mqttClient.on('error',function(){
+	console.log('mqtt error, consider to restart');
+	setTimeout(function(){
+	    throw new Error('mqtt close');
+
+	},5000);	    
+    });
+	
+    mqttClient.on('close', function(){
+	console.log('mqtt close, to restart');
+
+    });    
 });
 
 

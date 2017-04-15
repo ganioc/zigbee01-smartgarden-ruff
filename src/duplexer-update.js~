@@ -1,5 +1,6 @@
 'use strict';
 
+
 var EventEmitter = require('events').EventEmitter;
 var Util = require('util');
 var Task = require('./task.js');
@@ -14,12 +15,13 @@ var SRC_EP = 8;
 var DST_EP = 8;
 var TASK_QUEUE_SCAN_PERIOD = 1000;
 var SHORTADDR_LIFE_TIME = 60;
-var ACQUISITION_PERIOD  =  (MAX_ROUTER_NUM * 2 + 8) * 1000;
+var ACQUISITION_PERIOD  =  MAX_ROUTER_NUM * 2 * 1000;
+
 
 var rptId = (function(){
     var i = 1;
     return function(){
-	if(i>0xffff){
+	if(i>255){
 	    i = 1;
 	}
 	return i++;
@@ -95,10 +97,10 @@ Duplexer.prototype.createBatchTask = function(){
 	var cmd = {};
 	
 	if( m.deviceType === DEVICE_TYPE_1){
-	    that.insertLTask(m.sn, Protocol.PARAM_ID_TYPE1_STATUS);
+	    that.insertRTask(m.sn, Protocol.PARAM_ID_TYPE1_STATUS);
 	}
 	else if( m.deviceType === DEVICE_TYPE_2){
-	    that.insertLTask(m.sn, Protocol.PARAM_ID_TYPE2_STATUS);
+	    that.insertRTask(m.sn, Protocol.PARAM_ID_TYPE2_STATUS);
 	}
     });
 
@@ -108,12 +110,7 @@ Duplexer.prototype.createBatchTask = function(){
 
 Duplexer.prototype.addTask  = function( obj, callback){
     // change it, insert new task at the array head
-    this._queue.splice(0,0, new Task(obj, callback));
-    //this._queue.push( new Task(obj, callback) );
-};
-// add local initiated task
-Duplexer.prototype.addLTask  = function( obj, callback){
-    // change it, insert new task at the array tail
+    
     this._queue.push( new Task(obj, callback) );
     
 };
@@ -128,7 +125,7 @@ Duplexer.prototype.addLTask  = function( obj, callback){
 //     );
 // };
 // read task
-Duplexer.prototype.insertLTask = function(sn, param_id){
+Duplexer.prototype.insertRTask = function(sn, param_id){
     var cmd = {};
     cmd.sn = sn;
     cmd.msg_type = "r";
@@ -139,7 +136,7 @@ Duplexer.prototype.insertLTask = function(sn, param_id){
     var length = this._queue.length;
     console.log('current _queue length:' + length);
     
-    this.addLTask(
+    this.addTask(
 	{
 	    cmd:cmd,
 	    param: Protocol.mapParam2HA[cmd.param_id.toString()],
@@ -171,17 +168,19 @@ Duplexer.prototype.process = function(task){
     }
     else{
 	console.log('Check timeout');
+	var curTime = new Date().getTime();
+	var deltaTime = curTime - task.timeStamp;
 
-	if( task._life < 0){
+	if( deltaTime > task._timeout){
 	    // timeout
 	    task.timeout();
 	    task.bDone = true;
 	}
 	else{
 	    console.log('No timeout');
-	    task._life--;
 	}
     }
+
 };
 
 Duplexer.prototype.cleanTaskQueue = function(){
@@ -488,7 +487,7 @@ Duplexer.prototype.open = function(){
 	}
 
 	var handledTaskList = _.filter(that._queue, function(obj){
-	    return( obj.bProcessed === true);
+	    return( obj.bProcessed !== false);
 	});
 
 	_.each(handledTaskList, function(obj){
@@ -540,6 +539,7 @@ Duplexer.prototype.open = function(){
 
     // check task queue, addr queue at a time
     setInterval(function(){
+    	console.log('-------------');
     	console.log('Emit process signal');
 	console.log(new Date());
 	

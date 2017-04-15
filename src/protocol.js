@@ -302,7 +302,7 @@ var funcParse = function(buf){
 
     if(out.subSystem === MT_CUST_COMMAND_SUBSYSTEM){
 	console.log('Protocol funcParse');
-	console.log(out);
+	//console.log(out);
     }else{
 	;
     }

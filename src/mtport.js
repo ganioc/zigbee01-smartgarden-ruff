@@ -27,8 +27,8 @@ var MT_UART_SOF = 0xfe;
 // collect Frame
 // Assemble the frame
 function AnalyzeFrame( data, that){
-    console.log('In AnalyzeFrame');
-    console.log(typeof data);
+    //console.log('In AnalyzeFrame');
+    //console.log(typeof data);
     
     for(var i = 0; i< data.length; i++){
 	AnalyzeByte(data[i], that);
@@ -39,13 +39,13 @@ function AnalyzeByte(ch, that){
     
     switch(state){
     case SOP_STATE:
-	console.log('Frame start:' + ch.toString('16'));
+	//console.log('Frame start:' + ch.toString('16'));
 	if(ch == MT_UART_SOF)
 	    state = LEN_STATE;
 	break;
     case LEN_STATE:
 	//LEN_TOKEN = ch;
-	console.log('length dec:' + ch.toString());
+	//console.log('length dec:' + ch.toString());
 	length = ch;
 	index = 0;
 	if(length <= 255){
@@ -80,7 +80,7 @@ function AnalyzeByte(ch, that){
 	
 	break;
     case FCS_STATE:
-	console.log('FCS STATE: ' + ch.toString() );
+	//console.log('FCS STATE: ' + ch.toString() );
 	FCS_TOKEN = ch;
 
 	if( Protocol.MT_UartCalcFCS( rcvBuf, index) === FCS_TOKEN ){
