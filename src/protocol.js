@@ -70,7 +70,7 @@ var COMMAND_TYPE1_SOIL_ENABLE      =0x14;
 var COMMAND_TYPE1_SOIL_DISABLE     =0x15;
 var COMMAND_TYPE1_PH_ENABLE        =0x16;
 var COMMAND_TYPE1_PH_DISABLE       =0x17;
-
+var COMMAND_RESET                  =0x1E;
 
 // End of ZCL definition
 
@@ -185,6 +185,7 @@ var CMD_TYPE1_SOIL_ENABLE         = 20;
 var CMD_TYPE1_SOIL_DISABLE        = 21;
 var CMD_TYPE1_PH_ENABLE           = 22;
 var CMD_TYPE1_PH_DISABLE          = 23;
+var CMD_RESET                     = 30;
 
 var mapCmd2HA = {
     //CMD_ID_TURN_ON_IRRIGATE
@@ -244,7 +245,12 @@ var mapCmd2HA = {
 	content: 'CMD_TYPE1_PH_DISABLE',
 	clusterId: ZCL_CLUSTER_ID_GEN_ON_OFF,
 	cmdId:     COMMAND_TYPE1_PH_DISABLE 
-    }    
+    }    ,
+    30:{
+	content: 'CMD_RESET',
+	clusterId: ZCL_CLUSTER_ID_GEN_ON_OFF,
+	cmdId:     COMMAND_RESET 
+    }
 };
 
 // local chipId, shorAddr mapping
@@ -382,7 +388,7 @@ function buildCustCmd( cmdType, subSystem, cmdID, data){
 }
 // Send ReadAttrCmd
 function buildSendCustReadAttrCmd(addr, dstEp, clusterId, attrId){
-    var buf = new Uint8Array(8);
+    var buf = new Buffer(8);
 
     console.log('buildSendCustreadAttrCmd');
     
@@ -404,7 +410,7 @@ function buildSendCustReadAttrCmd(addr, dstEp, clusterId, attrId){
 }
 // send write command
 function buildSendCustWriteAttrCmd(addr, dstEp, clusterId, attrId,value){
-    var buf = new Uint8Array(11);
+    var buf = new Buffer(11);
 
     buf[0] = SRCEP;
     // dstAddr
@@ -427,7 +433,7 @@ function buildSendCustWriteAttrCmd(addr, dstEp, clusterId, attrId,value){
 }
 // send a test command
 function buildSendTestCmd(value){
-    var buf = new Uint8Array(1);
+    var buf = new Buffer(1);
     buf[0] = value; // It's a byte value
     
     return buildCustCmd( MT_CUST_COMMAND_TYPE_ASK,
@@ -439,7 +445,7 @@ function buildSendTestCmd(value){
 
 // send write command
 function buildSendCustCmdCmd(addr, dstEp, clusterId, cmdId){
-    var buf = new Uint8Array(8);
+    var buf = new Buffer(8);
 
     buf[0] = SRCEP;
     // dstAddr
@@ -485,6 +491,8 @@ function parsePayloadHeartbeatRpt( msg){
 }
 // input buffer, output object
 function parseRData( buf ){
+    console.log(buf);
+    
     var out = {};
     out.addr = buf.readUInt16BE(0);
     out.clusterId = buf.readUInt16BE(2);
@@ -508,7 +516,8 @@ function parseRData( buf ){
 
 function convertRDataFormat(attrId, value){
     var out;
-    console.log('convert attid:' + attrId + ' value:' + value);
+    console.log('convert attid:' + attrId);
+    console.log( 'convert  value:' + value);
     
     switch(attrId){
     case ATTRID_BASIC_SMARTGARDEN_HEARTBEAT_PERIOD:
@@ -524,16 +533,19 @@ function convertRDataFormat(attrId, value){
 	    out = 0x7fff - out + 1;
 	    out = -out * 0.1;
 	}
+	out = parseFloat(out.toFixed(2));
 	break;
     case ATTRID_BASIC_SMARTGARDEN_HUMI_INTENSITY:
 	out = value * 0.1;
-	
+	out = parseFloat(out.toFixed(2));	
 	break;
     case ATTRID_BASIC_SMARTGARDEN_LIGHT_INTENSITY:
 	out = value;
+	out = parseFloat(out.toFixed(2));	
 	break;
     case ATTRID_BASIC_SMARTGARDEN_PH_VALUE:
 	out = (value - 4.0 )*14/1600;
+	out = parseFloat(out.toFixed(2));
 	break;
     case ATTRID_BASIC_SMARTGARDEN_TEMP:
 	if( (value & 0x8000) == 0){
@@ -545,10 +557,11 @@ function convertRDataFormat(attrId, value){
 	    out = 0x7fff - out + 1;
 	    out = -out * 0.01;
 	}
+	out = parseFloat(out.toFixed(2));
 	break;
     case ATTRID_BASIC_SMARTGARDEN_HUMIDITY:
 	out = value *0.01;
-
+	out = parseFloat(out.toFixed(2));
 	break;
     case ATTRID_BASIC_SMARTGARDEN_TYPE1_STATUS:
 	// value is a buffer

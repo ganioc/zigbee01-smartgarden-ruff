@@ -13,7 +13,7 @@ var TOPIC_GATEWAY_STATUS  ='smartgarden/gw_sn00000001/status';
 var TOPIC_GATEWAY_LOG  ='smartgarden/gw_sn00000001/log';
 var TOPIC_GATEWAY_HEARTBEAT = 'smartgarden/background/heartbeat';
 
-var HOST = '139.196.19.179';
+var HOST = '42.159.133.136';
 var PORT = 1883;
 var CLIENT_ID = 'gw_sn-1';
 var GW_SN = 'gw_sn00000001';
@@ -26,7 +26,7 @@ var heartbeat_counter = 10;
      protocolId: 'MQIsdp',
      protocolVersion: 3,
      clientId: CLIENT_ID,
-     username: 'alice',
+     username: 'ruff100',
      password: 'secret'
  };
 
@@ -105,7 +105,7 @@ $.ready(function (error) {
 	    console.log('Publish status');
 	    mqttClient.publish(TOPIC_GATEWAY_STATUS,
 			       JSON.stringify(getDeviceStatus()));
-	},60000);
+	},30000);
 
 	setInterval(function(){
 	    console.log('@');	
@@ -274,6 +274,12 @@ function processCmdFromCustomer( msg ){
                 cmd:   cmd,
                 param: Protocol.mapCmd2HA[cmd.cmd_id.toString()]
             };
+
+	    if(cmd.cmd_id === 30){
+		// reset the APP
+		throw new Error('Reset the APP');
+	    }
+	    
             duplexer.emit('addtask',option ,cCallback);
         }
 
