@@ -105,7 +105,7 @@ $.ready(function (error) {
 	    console.log('Publish status');
 	    mqttClient.publish(TOPIC_GATEWAY_STATUS,
 			       JSON.stringify(getDeviceStatus()));
-	},30000);
+	},60000);
 
 	setInterval(function(){
 	    console.log('@');	
